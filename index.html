@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MyGudang</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: system-ui, -apple-system, sans-serif; background:#f1f5f9; color:#1e293b; }
+  header { background:#dc2626; color:#fff; padding:18px 24px; }
+  header h1 { font-size:20px; font-weight:700; }
+  header p { font-size:13px; color:#fecaca; margin-top:2px; }
+  .wrap { max-width:1100px; margin:0 auto; padding:20px; }
+  .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:14px; margin-bottom:22px; }
+  .stat { background:#fff; border-radius:12px; padding:16px 18px; box-shadow:0 1px 3px rgba(0,0,0,.06); border-left:4px solid #6366f1; }
+  .stat .label { font-size:12px; color:#64748b; text-transform:uppercase; letter-spacing:.5px; }
+  .stat .val { font-size:26px; font-weight:800; margin-top:4px; }
+  .stat.warn { border-left-color:#ef4444; }
+  .stat.ok { border-left-color:#10b981; }
+  .stat.blue { border-left-color:#3b82f6; }
+  .tabs { display:flex; gap:6px; margin-bottom:16px; flex-wrap:wrap; }
+  .tab { padding:9px 18px; background:#fff; border:1px solid #e2e8f0; border-radius:8px; cursor:pointer; font-size:14px; font-weight:600; color:#475569; }
+  .tab.active { background:#6366f1; color:#fff; border-color:#6366f1; }
+  .card { background:#fff; border-radius:12px; padding:20px; box-shadow:0 1px 3px rgba(0,0,0,.06); margin-bottom:18px; }
+  .card h2 { font-size:16px; margin-bottom:14px; }
+  .form-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:12px; }
+  label { display:block; font-size:12px; font-weight:600; color:#475569; margin-bottom:4px; }
+  input, select, textarea { width:100%; padding:9px 11px; border:1px solid #cbd5e1; border-radius:8px; font-size:14px; font-family:inherit; }
+  input:focus, select:focus { outline:none; border-color:#6366f1; }
+  button { cursor:pointer; border:none; font-family:inherit; }
+  .btn { background:#6366f1; color:#fff; padding:10px 20px; border-radius:8px; font-weight:600; font-size:14px; }
+  .btn:hover { background:#4f46e5; }
+  .btn-sm { padding:6px 12px; font-size:13px; border-radius:6px; }
+  .btn-in { background:#10b981; } .btn-in:hover{background:#059669;}
+  .btn-out { background:#f59e0b; } .btn-out:hover{background:#d97706;}
+  .btn-del { background:#ef4444; } .btn-del:hover{background:#dc2626;}
+  .btn-gray { background:#64748b; } .btn-gray:hover{background:#475569;}
+  table { width:100%; border-collapse:collapse; font-size:14px; }
+  th, td { padding:11px 10px; text-align:left; border-bottom:1px solid #e2e8f0; }
+  th { font-size:12px; text-transform:uppercase; color:#64748b; letter-spacing:.4px; }
+  tr:hover td { background:#f8fafc; }
+  .thumb { width:44px; height:44px; object-fit:cover; border-radius:8px; border:1px solid #e2e8f0; cursor:pointer; }
+  .thumb-ph { width:44px; height:44px; border-radius:8px; background:#f1f5f9; display:flex; align-items:center; justify-content:center; color:#cbd5e1; font-size:18px; }
+  .badge { display:inline-block; padding:3px 9px; border-radius:20px; font-size:11px; font-weight:700; }
+  .badge-ok { background:#dcfce7; color:#15803d; }
+  .badge-cat { background:#e0e7ff; color:#4338ca; }
+  .badge-mobile { background:#cffafe; color:#0e7490; }
+  .badge-household { background:#fce7f3; color:#be185d; }
+  .badge-in { background:#dcfce7; color:#15803d; }
+  .badge-out { background:#fef3c7; color:#b45309; }
+  .row-actions { display:flex; gap:6px; }
+  .muted { color:#94a3b8; font-size:13px; }
+  .empty { text-align:center; padding:40px; color:#94a3b8; }
+  .modal-bg { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; align-items:center; justify-content:center; z-index:50; padding:20px; }
+  .modal-bg.show { display:flex; }
+  .modal { background:#fff; border-radius:14px; padding:24px; max-width:440px; width:100%; max-height:90vh; overflow:auto; }
+  .modal h3 { margin-bottom:16px; }
+  .modal-actions { display:flex; gap:10px; margin-top:18px; justify-content:flex-end; }
+  .img-modal { max-width:100%; border-radius:10px; }
+  .filters { display:flex; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+  .filters input, .filters select { max-width:220px; }
+  .notice { background:#fef9c3; border:1px solid #fde047; color:#854d0e; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; }
+  .loading { text-align:center; padding:30px; color:#94a3b8; }
+</style>
+</head>
+<body>
+<header>
+  <h1>📦 MyGudang</h1>
+  <p>Data tersimpan bersama — semua pengguna melihat data yang sama</p>
+</header>
+<div class="wrap">
+  <div class="notice" id="connStatus">🔌 Menghubungkan ke database...</div>
+
+  <div class="stats" id="stats"></div>
+
+  <div class="tabs">
+    <div class="tab active" data-tab="barang" onclick="switchTab('barang')">Daftar Barang</div>
+    <div class="tab" data-tab="riwayat" onclick="switchTab('riwayat')">Riwayat Transaksi</div>
+    <div class="tab" data-tab="tracking" onclick="switchTab('tracking')">Tracking Keluar</div>
+  </div>
+
+  <!-- TAB BARANG -->
+  <div id="tab-barang">
+    <div class="card">
+      <h2>Tambah Barang Baru</h2>
+      <div class="form-grid">
+        <div><label>Nama Barang</label><input id="nm" placeholder="mis. Kabel HDMI"></div>
+        <div><label>Kategori</label><input id="cat" list="catlist" placeholder="mis. Elektronik"><datalist id="catlist"></datalist></div>
+        <div><label>Pemilik Barang</label><select id="owner"><option value="Mobile">Mobile</option><option value="Household">Household</option></select></div>
+        <div><label>Jumlah Awal</label><input id="qty" type="number" value="0" min="0"></div>
+        <div><label>Foto Barang</label><input id="foto" type="file" accept="image/*"></div>
+      </div>
+      <div style="margin-top:14px"><button class="btn" onclick="addBarang()">+ Tambah Barang</button></div>
+    </div>
+
+    <div class="card">
+      <div class="filters">
+        <input id="search" placeholder="🔍 Cari nama barang..." oninput="renderBarang()">
+        <select id="filterCat" onchange="renderBarang()"><option value="">Semua Kategori</option></select>
+        <select id="filterOwner" onchange="renderBarang()"><option value="">Semua Pemilik</option><option value="Mobile">Mobile</option><option value="Household">Household</option></select>
+      </div>
+      <div id="barangTable"></div>
+    </div>
+  </div>
+
+  <!-- TAB RIWAYAT -->
+  <div id="tab-riwayat" style="display:none">
+    <div class="card">
+      <div class="filters">
+        <input id="searchR" placeholder="🔍 Cari barang / nama orang..." oninput="renderRiwayat()">
+        <select id="filterTipe" onchange="renderRiwayat()"><option value="">Semua Tipe</option><option value="in">Masuk</option><option value="out">Keluar</option></select>
+      </div>
+      <div id="riwayatTable"></div>
+    </div>
+  </div>
+
+  <!-- TAB TRACKING KELUAR -->
+  <div id="tab-tracking" style="display:none">
+    <div class="stats" id="trackStats" style="margin-bottom:18px"></div>
+
+    <div class="card">
+      <div class="filters">
+        <select id="trackPeriod" onchange="renderTracking()">
+          <option value="all">Semua Waktu</option>
+          <option value="7">7 Hari Terakhir</option>
+          <option value="30">30 Hari Terakhir</option>
+          <option value="90">90 Hari Terakhir</option>
+        </select>
+        <select id="trackPerson" onchange="renderTracking()"><option value="">Semua Orang</option></select>
+        <select id="trackOwner" onchange="renderTracking()"><option value="">Semua Pemilik</option><option value="Mobile">Mobile</option><option value="Household">Household</option></select>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>🏆 Barang Paling Sering Keluar</h2>
+      <div id="topBarang"></div>
+    </div>
+
+    <div class="card">
+      <h2>👤 Rekap per Orang (yang mengeluarkan barang)</h2>
+      <div id="perOrang"></div>
+    </div>
+
+    <div class="card">
+      <h2>📋 Detail Barang Keluar</h2>
+      <div class="filters">
+        <input id="searchT" placeholder="🔍 Cari barang / nama orang..." oninput="renderTracking()">
+      </div>
+      <div id="keluarTable"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL TRANSAKSI -->
+<div class="modal-bg" id="txModal">
+  <div class="modal">
+    <h3 id="txTitle">Transaksi</h3>
+    <input type="hidden" id="txId">
+    <div style="margin-bottom:12px"><label>Jumlah</label><input id="txQty" type="number" min="1" value="1"></div>
+    <div id="txPersonWrap" style="margin-bottom:12px"><label>Nama yang mengeluarkan barang</label><input id="txPerson" placeholder="ketik nama..."></div>
+    <div style="margin-bottom:12px"><label>Catatan (opsional)</label><input id="txNote" placeholder="mis. untuk proyek A"></div>
+    <div class="modal-actions">
+      <button class="btn btn-gray" onclick="closeModal('txModal')">Batal</button>
+      <button class="btn" id="txSubmit">Simpan</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL FOTO -->
+<div class="modal-bg" id="imgModal" onclick="closeModal('imgModal')">
+  <div class="modal" onclick="event.stopPropagation()">
+    <h3>Foto Barang</h3>
+    <img id="imgBig" class="img-modal">
+    <div class="modal-actions"><button class="btn btn-gray" onclick="closeModal('imgModal')">Tutup</button></div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+// ============================================================
+//  KONFIGURASI SUPABASE — GANTI 2 BARIS DI BAWAH INI
+//  Ambil dari dashboard Supabase: Settings > API
+// ============================================================
+const SUPABASE_URL = 'MASUKKAN_URL_ANDA_DISINI';
+const SUPABASE_KEY = 'MASUKKAN_ANON_KEY_ANDA_DISINI';
+// ============================================================
+
+let sb = null;
+let items = [];
+let logs = [];
+let loaded = false;
+
+function setConn(msg,color){
+  const el=document.getElementById('connStatus');
+  el.textContent=msg;
+  const c={ok:['#dcfce7','#86efac','#15803d'],err:['#fee2e2','#fca5a5','#b91c1c'],warn:['#fef9c3','#fde047','#854d0e']}[color];
+  el.style.background=c[0]; el.style.borderColor=c[1]; el.style.color=c[2];
+}
+
+async function loadData(){
+  if(SUPABASE_URL.startsWith('MASUKKAN')||SUPABASE_KEY.startsWith('MASUKKAN')){
+    setConn('⚠️ Supabase belum dikonfigurasi. Isi SUPABASE_URL & SUPABASE_KEY di dalam file. Aplikasi tampil tapi data belum tersimpan.','err');
+    loaded=true; refresh(); return;
+  }
+  try {
+    sb = supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+    const {data:it,error:e1}=await sb.from('items').select('*').order('created',{ascending:true});
+    if(e1) throw e1;
+    const {data:lg,error:e2}=await sb.from('logs').select('*').order('ts',{ascending:false});
+    if(e2) throw e2;
+    items=it||[]; logs=lg||[];
+    setConn('✅ Terhubung ke database bersama. Semua pengguna melihat data yang sama.','ok');
+    loaded=true; refresh();
+    sb.channel('mygudang')
+      .on('postgres_changes',{event:'*',schema:'public',table:'items'},reloadSilently)
+      .on('postgres_changes',{event:'*',schema:'public',table:'logs'},reloadSilently)
+      .subscribe();
+  } catch(err){
+    setConn('❌ Gagal terhubung. Cek URL/Key & tabel Supabase. ('+(err.message||err)+')','err');
+    loaded=true; refresh();
+  }
+}
+
+async function reloadSilently(){
+  if(!sb) return;
+  try {
+    const {data:it}=await sb.from('items').select('*').order('created',{ascending:true});
+    const {data:lg}=await sb.from('logs').select('*').order('ts',{ascending:false});
+    items=it||[]; logs=lg||[]; refresh();
+  } catch(e){}
+}
+
+async function upsertItem(it){
+  if(!sb) return;
+  const {error}=await sb.from('items').upsert(it);
+  if(error) alert('Gagal menyimpan barang: '+error.message);
+}
+async function insertLog(l){
+  if(!sb) return;
+  const {error}=await sb.from('logs').insert(l);
+  if(error) alert('Gagal menyimpan riwayat: '+error.message);
+}
+async function removeItem(id){
+  if(!sb) return;
+  const {error}=await sb.from('items').delete().eq('id',id);
+  if(error) alert('Gagal menghapus: '+error.message);
+}
+
+function uid(){ return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+function fmtDate(ts){ const d=new Date(ts); return d.toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'})+' '+d.toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}); }
+
+function fileToDataUrl(file){
+  return new Promise((res)=>{
+    if(!file) return res('');
+    const rd=new FileReader();
+    rd.onload=()=>{
+      const img=new Image();
+      img.onload=()=>{
+        const max=300, sc=Math.min(1,max/Math.max(img.width,img.height));
+        const c=document.createElement('canvas');
+        c.width=img.width*sc; c.height=img.height*sc;
+        c.getContext('2d').drawImage(img,0,0,c.width,c.height);
+        res(c.toDataURL('image/jpeg',0.7));
+      };
+      img.src=rd.result;
+    };
+    rd.readAsDataURL(file);
+  });
+}
+
+async function addBarang(){
+  const nm=document.getElementById('nm').value.trim();
+  const cat=document.getElementById('cat').value.trim()||'Umum';
+  const owner=document.getElementById('owner').value;
+  const qty=parseInt(document.getElementById('qty').value)||0;
+  const file=document.getElementById('foto').files[0];
+  if(!nm){ alert('Nama barang wajib diisi.'); return; }
+  const foto=await fileToDataUrl(file);
+  const now=Date.now();
+  const it={id:uid(),nm,cat,owner,qty,foto,created:now,lastIn:qty>0?now:null,lastOut:null};
+  items.push(it);
+  await upsertItem(it);
+  if(qty>0){ const l={id:uid(),itemId:it.id,itemNm:nm,owner,type:'in',qty,person:'',note:'Stok awal',ts:now}; logs.unshift(l); await insertLog(l); }
+  document.getElementById('nm').value=''; document.getElementById('cat').value='';
+  document.getElementById('qty').value='0';
+  document.getElementById('foto').value='';
+  refresh();
+}
+
+async function delBarang(id){
+  if(!confirm('Hapus barang ini? Riwayat transaksinya tetap tersimpan.')) return;
+  items=items.filter(i=>i.id!==id);
+  await removeItem(id); refresh();
+}
+
+let txMode='in';
+function openTx(id,mode){
+  const it=items.find(i=>i.id===id); if(!it) return;
+  txMode=mode;
+  document.getElementById('txId').value=id;
+  document.getElementById('txTitle').textContent=(mode==='in'?'Barang Masuk — ':'Barang Keluar — ')+it.nm;
+  document.getElementById('txQty').value=1;
+  document.getElementById('txPerson').value='';
+  document.getElementById('txNote').value='';
+  document.getElementById('txPersonWrap').style.display=mode==='out'?'block':'none';
+  const btn=document.getElementById('txSubmit');
+  btn.className='btn '+(mode==='in'?'btn-in':'btn-out');
+  btn.textContent=mode==='in'?'Tambah Stok':'Keluarkan';
+  document.getElementById('txModal').classList.add('show');
+}
+
+document.getElementById('txSubmit').onclick=async function(){
+  const id=document.getElementById('txId').value;
+  const it=items.find(i=>i.id===id); if(!it) return;
+  const q=parseInt(document.getElementById('txQty').value)||0;
+  const person=document.getElementById('txPerson').value.trim();
+  const note=document.getElementById('txNote').value.trim();
+  if(q<1){ alert('Jumlah minimal 1.'); return; }
+  if(txMode==='out'){
+    if(q>it.qty){ alert('Stok tidak cukup. Sisa: '+it.qty); return; }
+    if(!person){ alert('Nama yang mengeluarkan barang wajib diisi.'); return; }
+    it.qty-=q; it.lastOut=Date.now();
+  } else {
+    it.qty+=q; it.lastIn=Date.now();
+  }
+  const l={id:uid(),itemId:it.id,itemNm:it.nm,owner:it.owner||'Mobile',type:txMode,qty:q,person,note,ts:Date.now()};
+  logs.unshift(l);
+  await upsertItem(it); await insertLog(l);
+  closeModal('txModal'); refresh();
+}
+
+function closeModal(id){ document.getElementById(id).classList.remove('show'); }
+function showImg(src){ document.getElementById('imgBig').src=src; document.getElementById('imgModal').classList.add('show'); }
+
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.dataset.tab===t));
+  document.getElementById('tab-barang').style.display=t==='barang'?'block':'none';
+  document.getElementById('tab-riwayat').style.display=t==='riwayat'?'block':'none';
+  document.getElementById('tab-tracking').style.display=t==='tracking'?'block':'none';
+  if(t==='tracking') renderTracking();
+}
+
+function renderStats(){
+  const totItems=items.length;
+  const totQty=items.reduce((s,i)=>s+i.qty,0);
+  const cats=new Set(items.map(i=>i.cat)).size;
+  const mob=items.filter(i=>(i.owner||'Mobile')==='Mobile').reduce((s,i)=>s+i.qty,0);
+  const hh=items.filter(i=>(i.owner||'Mobile')==='Household').reduce((s,i)=>s+i.qty,0);
+  const el=document.getElementById('stats');
+  el.innerHTML=`
+    <div class="stat blue"><div class="label">Jenis Barang</div><div class="val">${totItems}</div></div>
+    <div class="stat ok"><div class="label">Total Stok</div><div class="val">${totQty}</div></div>
+    <div class="stat"><div class="label">Kategori</div><div class="val">${cats}</div></div>
+    <div class="stat blue"><div class="label">Stok Mobile</div><div class="val">${mob}</div></div>
+    <div class="stat warn"><div class="label">Stok Household</div><div class="val">${hh}</div></div>
+    <div class="stat blue"><div class="label">Total Transaksi</div><div class="val">${logs.length}</div></div>`;
+}
+
+function renderCats(){
+  const cats=[...new Set(items.map(i=>i.cat))].sort();
+  document.getElementById('catlist').innerHTML=cats.map(c=>`<option value="${c}">`).join('');
+  const fc=document.getElementById('filterCat'), cur=fc.value;
+  fc.innerHTML='<option value="">Semua Kategori</option>'+cats.map(c=>`<option value="${c}">${c}</option>`).join('');
+  fc.value=cur;
+}
+
+function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function renderBarang(){
+  const q=document.getElementById('search').value.toLowerCase();
+  const fc=document.getElementById('filterCat').value;
+  const fo=document.getElementById('filterOwner').value;
+  let list=items.filter(i=>i.nm.toLowerCase().includes(q));
+  if(fc) list=list.filter(i=>i.cat===fc);
+  if(fo) list=list.filter(i=>(i.owner||'Mobile')===fo);
+  const el=document.getElementById('barangTable');
+  if(!list.length){ el.innerHTML='<div class="empty">Belum ada barang.</div>'; return; }
+  el.innerHTML=`<table><thead><tr>
+    <th>Foto</th><th>Nama</th><th>Kategori</th><th>Pemilik</th><th>Stok</th><th>Terakhir Masuk</th><th>Terakhir Keluar</th><th>Aksi</th>
+    </tr></thead><tbody>`+list.map(i=>{
+      const thumb=i.foto?`<img src="${i.foto}" class="thumb" onclick="showImg('${i.foto}')">`:`<div class="thumb-ph">📦</div>`;
+      const ow=i.owner||'Mobile';
+      return `<tr>
+        <td>${thumb}</td>
+        <td><b>${esc(i.nm)}</b></td>
+        <td><span class="badge badge-cat">${esc(i.cat)}</span></td>
+        <td><span class="badge ${ow==='Household'?'badge-household':'badge-mobile'}">${esc(ow)}</span></td>
+        <td><b>${i.qty}</b></td>
+        <td class="muted">${i.lastIn?fmtDate(i.lastIn):'-'}</td>
+        <td class="muted">${i.lastOut?fmtDate(i.lastOut):'-'}</td>
+        <td><div class="row-actions">
+          <button class="btn btn-sm btn-in" onclick="openTx('${i.id}','in')">Masuk</button>
+          <button class="btn btn-sm btn-out" onclick="openTx('${i.id}','out')">Keluar</button>
+          <button class="btn btn-sm btn-del" onclick="delBarang('${i.id}')">Hapus</button>
+        </div></td>
+      </tr>`;
+    }).join('')+`</tbody></table>`;
+}
+
+function renderRiwayat(){
+  const q=document.getElementById('searchR').value.toLowerCase();
+  const ft=document.getElementById('filterTipe').value;
+  let list=[...logs].sort((a,b)=>b.ts-a.ts);
+  if(q) list=list.filter(l=>l.itemNm.toLowerCase().includes(q)||(l.person||'').toLowerCase().includes(q));
+  if(ft) list=list.filter(l=>l.type===ft);
+  const el=document.getElementById('riwayatTable');
+  if(!list.length){ el.innerHTML='<div class="empty">Belum ada transaksi.</div>'; return; }
+  el.innerHTML=`<table><thead><tr>
+    <th>Tanggal</th><th>Barang</th><th>Pemilik</th><th>Tipe</th><th>Jumlah</th><th>Oleh</th><th>Catatan</th>
+    </tr></thead><tbody>`+list.map(l=>`<tr>
+      <td class="muted">${fmtDate(l.ts)}</td>
+      <td><b>${esc(l.itemNm)}</b></td>
+      <td><span class="badge ${(l.owner||'Mobile')==='Household'?'badge-household':'badge-mobile'}">${esc(l.owner||'Mobile')}</span></td>
+      <td>${l.type==='in'?'<span class="badge badge-in">Masuk</span>':'<span class="badge badge-out">Keluar</span>'}</td>
+      <td><b>${l.type==='in'?'+':'−'}${l.qty}</b></td>
+      <td>${l.person?esc(l.person):'<span class="muted">-</span>'}</td>
+      <td class="muted">${esc(l.note)||'-'}</td>
+    </tr>`).join('')+`</tbody></table>`;
+}
+
+function renderTracking(){
+  const period=document.getElementById('trackPeriod').value;
+  const fp=document.getElementById('trackPerson').value;
+  const fow=document.getElementById('trackOwner').value;
+  const q=document.getElementById('searchT').value.toLowerCase();
+
+  // isi dropdown orang
+  const persons=[...new Set(logs.filter(l=>l.type==='out'&&l.person).map(l=>l.person))].sort();
+  const pd=document.getElementById('trackPerson'), cur=pd.value;
+  pd.innerHTML='<option value="">Semua Orang</option>'+persons.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join('');
+  pd.value=cur;
+
+  // filter transaksi keluar
+  let outs=logs.filter(l=>l.type==='out');
+  if(period!=='all'){ const cut=Date.now()-parseInt(period)*86400000; outs=outs.filter(l=>l.ts>=cut); }
+  if(fp) outs=outs.filter(l=>l.person===fp);
+  if(fow) outs=outs.filter(l=>(l.owner||'Mobile')===fow);
+
+  // STATS
+  const totalKeluar=outs.reduce((s,l)=>s+l.qty,0);
+  const transaksiKeluar=outs.length;
+  const orangAktif=new Set(outs.map(l=>l.person).filter(Boolean)).size;
+  const barangUnik=new Set(outs.map(l=>l.itemId)).size;
+  document.getElementById('trackStats').innerHTML=`
+    <div class="stat warn"><div class="label">Total Unit Keluar</div><div class="val">${totalKeluar}</div></div>
+    <div class="stat blue"><div class="label">Transaksi Keluar</div><div class="val">${transaksiKeluar}</div></div>
+    <div class="stat"><div class="label">Orang Terlibat</div><div class="val">${orangAktif}</div></div>
+    <div class="stat ok"><div class="label">Jenis Barang</div><div class="val">${barangUnik}</div></div>`;
+
+  // TOP BARANG
+  const byItem={};
+  outs.forEach(l=>{ byItem[l.itemNm]=(byItem[l.itemNm]||0)+l.qty; });
+  const topItems=Object.entries(byItem).sort((a,b)=>b[1]-a[1]).slice(0,10);
+  const maxI=topItems.length?topItems[0][1]:1;
+  const tb=document.getElementById('topBarang');
+  tb.innerHTML=topItems.length?topItems.map(([n,v],i)=>`
+    <div style="margin-bottom:9px">
+      <div style="display:flex;justify-content:space-between;font-size:14px;margin-bottom:3px">
+        <span><b>${i+1}.</b> ${esc(n)}</span><span class="muted">${v} unit</span></div>
+      <div style="background:#f1f5f9;border-radius:6px;height:8px;overflow:hidden">
+        <div style="background:#f59e0b;height:100%;width:${(v/maxI*100).toFixed(0)}%"></div></div>
+    </div>`).join(''):'<div class="empty">Belum ada barang keluar pada periode ini.</div>';
+
+  // PER ORANG
+  const byPerson={};
+  outs.forEach(l=>{ const p=l.person||'(tanpa nama)'; if(!byPerson[p]) byPerson[p]={qty:0,tx:0}; byPerson[p].qty+=l.qty; byPerson[p].tx++; });
+  const persList=Object.entries(byPerson).sort((a,b)=>b[1].qty-a[1].qty);
+  const po=document.getElementById('perOrang');
+  po.innerHTML=persList.length?`<table><thead><tr>
+    <th>Nama</th><th>Total Unit Diambil</th><th>Jumlah Transaksi</th></tr></thead><tbody>`+
+    persList.map(([p,d])=>`<tr><td><b>${esc(p)}</b></td><td><b>${d.qty}</b></td><td>${d.tx}</td></tr>`).join('')+
+    `</tbody></table>`:'<div class="empty">Belum ada data.</div>';
+
+  // DETAIL TABLE
+  let detail=[...outs].sort((a,b)=>b.ts-a.ts);
+  if(q) detail=detail.filter(l=>l.itemNm.toLowerCase().includes(q)||(l.person||'').toLowerCase().includes(q));
+  const kt=document.getElementById('keluarTable');
+  kt.innerHTML=detail.length?`<table><thead><tr>
+    <th>Tanggal</th><th>Barang</th><th>Pemilik</th><th>Jumlah</th><th>Dikeluarkan Oleh</th><th>Catatan</th>
+    </tr></thead><tbody>`+detail.map(l=>`<tr>
+      <td class="muted">${fmtDate(l.ts)}</td>
+      <td><b>${esc(l.itemNm)}</b></td>
+      <td><span class="badge ${(l.owner||'Mobile')==='Household'?'badge-household':'badge-mobile'}">${esc(l.owner||'Mobile')}</span></td>
+      <td><b>−${l.qty}</b></td>
+      <td><span class="badge badge-out">${l.person?esc(l.person):'-'}</span></td>
+      <td class="muted">${esc(l.note)||'-'}</td>
+    </tr>`).join('')+`</tbody></table>`:'<div class="empty">Tidak ada barang keluar.</div>';
+}
+
+function refresh(){
+  renderStats(); renderCats(); renderBarang(); renderRiwayat();
+  if(document.getElementById('tab-tracking').style.display!=='none') renderTracking();
+}
+
+document.querySelector('.wrap').insertAdjacentHTML('afterbegin','<div class="loading" id="ld">Memuat data...</div>');
+loadData().then(()=>{ const l=document.getElementById('ld'); if(l) l.remove(); });
+</script>
+</body>
+</html>
