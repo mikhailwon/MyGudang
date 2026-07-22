@@ -46,6 +46,8 @@
   .badge-cat { background:#e0e7ff; color:#4338ca; }
   .badge-mobile { background:#cffafe; color:#0e7490; }
   .badge-household { background:#fce7f3; color:#be185d; }
+  .badge-coorporate { background:#dbeafe; color:#1e40af; }
+  .badge-general { background:#fef3c7; color:#b45309; }
   .badge-in { background:#dcfce7; color:#15803d; }
   .badge-out { background:#fef3c7; color:#b45309; }
   .row-actions { display:flex; gap:6px; }
@@ -61,12 +63,49 @@
   .filters input, .filters select { max-width:220px; }
   .notice { background:#fef9c3; border:1px solid #fde047; color:#854d0e; padding:10px 14px; border-radius:8px; font-size:13px; margin-bottom:16px; }
   .loading { text-align:center; padding:30px; color:#94a3b8; }
+  /* Login */
+  #loginScreen { position:fixed; inset:0; background:#0f172a; display:flex; align-items:center; justify-content:center; z-index:100; padding:20px; }
+  .login-box { background:#fff; border-radius:16px; padding:32px; max-width:380px; width:100%; box-shadow:0 20px 50px rgba(0,0,0,.3); }
+  .login-box h1 { font-size:24px; text-align:center; margin-bottom:6px; }
+  .login-box .sub { text-align:center; color:#64748b; font-size:13px; margin-bottom:24px; }
+  .login-box label { margin-top:14px; }
+  .login-err { background:#fee2e2; color:#b91c1c; padding:9px 12px; border-radius:8px; font-size:13px; margin-top:14px; display:none; }
+  .login-link { text-align:center; margin-top:16px; }
+  .login-link a { color:#dc2626; font-size:13px; cursor:pointer; text-decoration:underline; }
+  .header-user { display:flex; align-items:center; gap:12px; }
+  .header-user .uname { font-size:13px; color:#fecaca; }
+  .btn-logout { background:rgba(255,255,255,.15); color:#fff; padding:6px 14px; border-radius:6px; font-size:13px; font-weight:600; }
+  .btn-logout:hover { background:rgba(255,255,255,.28); }
+  .header-flex { display:flex; justify-content:space-between; align-items:center; }
+  .admin-note { font-size:12px; color:#64748b; margin-top:8px; }
 </style>
 </head>
 <body>
+
+<!-- LAYAR LOGIN -->
+<div id="loginScreen">
+  <div class="login-box">
+    <h1>📦 MyGudang</h1>
+    <div class="sub">Masuk untuk mengelola stok</div>
+    <div><label>Username</label><input id="loginUser" placeholder="username" autocomplete="off"></div>
+    <div><label>Password</label><input id="loginPass" type="password" placeholder="password" autocomplete="off"></div>
+    <div class="login-err" id="loginErr"></div>
+    <div style="margin-top:20px"><button class="btn" style="width:100%" onclick="doLogin()">Masuk</button></div>
+    <div class="login-link"><a onclick="openReset()">Lupa / reset password?</a></div>
+  </div>
+</div>
+
 <header>
-  <h1>📦 MyGudang</h1>
-  <p>Data tersimpan bersama — semua pengguna melihat data yang sama</p>
+  <div class="header-flex">
+    <div>
+      <h1>📦 MyGudang</h1>
+      <p>Data tersimpan bersama — semua pengguna melihat data yang sama</p>
+    </div>
+    <div class="header-user">
+      <span class="uname" id="currentUser"></span>
+      <button class="btn-logout" onclick="doLogout()">Keluar</button>
+    </div>
+  </div>
 </header>
 <div class="wrap">
   <div class="notice" id="connStatus">🔌 Menghubungkan ke database...</div>
@@ -86,7 +125,7 @@
       <div class="form-grid">
         <div><label>Nama Barang</label><input id="nm" placeholder="mis. Kabel HDMI"></div>
         <div><label>Kategori</label><input id="cat" list="catlist" placeholder="mis. Elektronik"><datalist id="catlist"></datalist></div>
-        <div><label>Pemilik Barang</label><select id="owner"><option value="Mobile">Mobile</option><option value="Household">Household</option></select></div>
+        <div><label>Pemilik Barang</label><select id="owner"><option value="Mobile">Mobile</option><option value="Household">Household</option><option value="Coorporate">Coorporate</option><option value="General Affair">General Affair</option></select></div>
         <div><label>Jumlah Awal</label><input id="qty" type="number" value="0" min="0"></div>
         <div><label>Foto Barang</label><input id="foto" type="file" accept="image/*"></div>
       </div>
@@ -97,7 +136,7 @@
       <div class="filters">
         <input id="search" placeholder="🔍 Cari nama barang..." oninput="renderBarang()">
         <select id="filterCat" onchange="renderBarang()"><option value="">Semua Kategori</option></select>
-        <select id="filterOwner" onchange="renderBarang()"><option value="">Semua Pemilik</option><option value="Mobile">Mobile</option><option value="Household">Household</option></select>
+        <select id="filterOwner" onchange="renderBarang()"><option value="">Semua Pemilik</option><option value="Mobile">Mobile</option><option value="Household">Household</option><option value="Coorporate">Coorporate</option><option value="General Affair">General Affair</option></select>
       </div>
       <div id="barangTable"></div>
     </div>
@@ -127,7 +166,7 @@
           <option value="90">90 Hari Terakhir</option>
         </select>
         <select id="trackPerson" onchange="renderTracking()"><option value="">Semua Orang</option></select>
-        <select id="trackOwner" onchange="renderTracking()"><option value="">Semua Pemilik</option><option value="Mobile">Mobile</option><option value="Household">Household</option></select>
+        <select id="trackOwner" onchange="renderTracking()"><option value="">Semua Pemilik</option><option value="Mobile">Mobile</option><option value="Household">Household</option><option value="Coorporate">Coorporate</option><option value="General Affair">General Affair</option></select>
       </div>
     </div>
 
@@ -175,6 +214,22 @@
   </div>
 </div>
 
+<!-- MODAL RESET PASSWORD -->
+<div class="modal-bg" id="resetModal">
+  <div class="modal">
+    <h3>Reset Password</h3>
+    <p class="admin-note" style="margin-bottom:14px">Masukkan username admin, password lama, lalu password baru.</p>
+    <div style="margin-bottom:12px"><label>Username</label><input id="rsUser" placeholder="username"></div>
+    <div style="margin-bottom:12px"><label>Password Lama</label><input id="rsOld" type="password" placeholder="password lama"></div>
+    <div style="margin-bottom:12px"><label>Password Baru</label><input id="rsNew" type="password" placeholder="minimal 4 karakter"></div>
+    <div style="margin-bottom:12px"><label>Ulangi Password Baru</label><input id="rsNew2" type="password" placeholder="ulangi"></div>
+    <div class="login-err" id="rsErr"></div>
+    <div class="modal-actions">
+      <button class="btn btn-gray" onclick="closeModal('resetModal')">Batal</button>
+      <button class="btn" onclick="doReset()">Simpan Password Baru</button>
+    </div>
+  </div>
+</div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
 // ============================================================
@@ -197,13 +252,19 @@ function setConn(msg,color){
   el.style.background=c[0]; el.style.borderColor=c[1]; el.style.color=c[2];
 }
 
+function initSb(){
+  if(sb) return true;
+  if(SUPABASE_URL.startsWith('MASUKKAN')||SUPABASE_KEY.startsWith('MASUKKAN')) return false;
+  try { sb = supabase.createClient(SUPABASE_URL,SUPABASE_KEY); return true; }
+  catch(e){ return false; }
+}
+
 async function loadData(){
-  if(SUPABASE_URL.startsWith('MASUKKAN')||SUPABASE_KEY.startsWith('MASUKKAN')){
+  if(!initSb()){
     setConn('⚠️ Supabase belum dikonfigurasi. Isi SUPABASE_URL & SUPABASE_KEY di dalam file. Aplikasi tampil tapi data belum tersimpan.','err');
     loaded=true; refresh(); return;
   }
   try {
-    sb = supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
     const {data:it,error:e1}=await sb.from('items').select('*').order('created',{ascending:true});
     if(e1) throw e1;
     const {data:lg,error:e2}=await sb.from('logs').select('*').order('ts',{ascending:false});
@@ -277,10 +338,10 @@ async function addBarang(){
   if(!nm){ alert('Nama barang wajib diisi.'); return; }
   const foto=await fileToDataUrl(file);
   const now=Date.now();
-  const it={id:uid(),nm,cat,owner,qty,foto,created:now,lastIn:qty>0?now:null,lastOut:null};
+  const it={id:uid(),nm,cat,owner,qty,foto,created:now,lastin:qty>0?now:null,lastout:null};
   items.push(it);
   await upsertItem(it);
-  if(qty>0){ const l={id:uid(),itemId:it.id,itemNm:nm,owner,type:'in',qty,person:'',note:'Stok awal',ts:now}; logs.unshift(l); await insertLog(l); }
+  if(qty>0){ const l={id:uid(),itemid:it.id,itemnm:nm,owner,type:'in',qty,person:'',note:'Stok awal',ts:now}; logs.unshift(l); await insertLog(l); }
   document.getElementById('nm').value=''; document.getElementById('cat').value='';
   document.getElementById('qty').value='0';
   document.getElementById('foto').value='';
@@ -319,11 +380,11 @@ document.getElementById('txSubmit').onclick=async function(){
   if(txMode==='out'){
     if(q>it.qty){ alert('Stok tidak cukup. Sisa: '+it.qty); return; }
     if(!person){ alert('Nama yang mengeluarkan barang wajib diisi.'); return; }
-    it.qty-=q; it.lastOut=Date.now();
+    it.qty-=q; it.lastout=Date.now();
   } else {
-    it.qty+=q; it.lastIn=Date.now();
+    it.qty+=q; it.lastin=Date.now();
   }
-  const l={id:uid(),itemId:it.id,itemNm:it.nm,owner:it.owner||'Mobile',type:txMode,qty:q,person,note,ts:Date.now()};
+  const l={id:uid(),itemid:it.id,itemnm:it.nm,owner:it.owner||'Mobile',type:txMode,qty:q,person,note,ts:Date.now()};
   logs.unshift(l);
   await upsertItem(it); await insertLog(l);
   closeModal('txModal'); refresh();
@@ -365,6 +426,11 @@ function renderCats(){
 }
 
 function esc(s){ return (s||'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+function ownerBadge(o){
+  o=o||'Mobile';
+  const cls={'Mobile':'badge-mobile','Household':'badge-household','Coorporate':'badge-coorporate','General Affair':'badge-general'}[o]||'badge-mobile';
+  return `<span class="badge ${cls}">${esc(o)}</span>`;
+}
 
 function renderBarang(){
   const q=document.getElementById('search').value.toLowerCase();
@@ -384,10 +450,10 @@ function renderBarang(){
         <td>${thumb}</td>
         <td><b>${esc(i.nm)}</b></td>
         <td><span class="badge badge-cat">${esc(i.cat)}</span></td>
-        <td><span class="badge ${ow==='Household'?'badge-household':'badge-mobile'}">${esc(ow)}</span></td>
+        <td>${ownerBadge(ow)}</td>
         <td><b>${i.qty}</b></td>
-        <td class="muted">${i.lastIn?fmtDate(i.lastIn):'-'}</td>
-        <td class="muted">${i.lastOut?fmtDate(i.lastOut):'-'}</td>
+        <td class="muted">${i.lastin?fmtDate(i.lastin):'-'}</td>
+        <td class="muted">${i.lastout?fmtDate(i.lastout):'-'}</td>
         <td><div class="row-actions">
           <button class="btn btn-sm btn-in" onclick="openTx('${i.id}','in')">Masuk</button>
           <button class="btn btn-sm btn-out" onclick="openTx('${i.id}','out')">Keluar</button>
@@ -401,7 +467,7 @@ function renderRiwayat(){
   const q=document.getElementById('searchR').value.toLowerCase();
   const ft=document.getElementById('filterTipe').value;
   let list=[...logs].sort((a,b)=>b.ts-a.ts);
-  if(q) list=list.filter(l=>l.itemNm.toLowerCase().includes(q)||(l.person||'').toLowerCase().includes(q));
+  if(q) list=list.filter(l=>l.itemnm.toLowerCase().includes(q)||(l.person||'').toLowerCase().includes(q));
   if(ft) list=list.filter(l=>l.type===ft);
   const el=document.getElementById('riwayatTable');
   if(!list.length){ el.innerHTML='<div class="empty">Belum ada transaksi.</div>'; return; }
@@ -409,8 +475,8 @@ function renderRiwayat(){
     <th>Tanggal</th><th>Barang</th><th>Pemilik</th><th>Tipe</th><th>Jumlah</th><th>Oleh</th><th>Catatan</th>
     </tr></thead><tbody>`+list.map(l=>`<tr>
       <td class="muted">${fmtDate(l.ts)}</td>
-      <td><b>${esc(l.itemNm)}</b></td>
-      <td><span class="badge ${(l.owner||'Mobile')==='Household'?'badge-household':'badge-mobile'}">${esc(l.owner||'Mobile')}</span></td>
+      <td><b>${esc(l.itemnm)}</b></td>
+      <td>${ownerBadge(l.owner)}</td>
       <td>${l.type==='in'?'<span class="badge badge-in">Masuk</span>':'<span class="badge badge-out">Keluar</span>'}</td>
       <td><b>${l.type==='in'?'+':'−'}${l.qty}</b></td>
       <td>${l.person?esc(l.person):'<span class="muted">-</span>'}</td>
@@ -440,7 +506,7 @@ function renderTracking(){
   const totalKeluar=outs.reduce((s,l)=>s+l.qty,0);
   const transaksiKeluar=outs.length;
   const orangAktif=new Set(outs.map(l=>l.person).filter(Boolean)).size;
-  const barangUnik=new Set(outs.map(l=>l.itemId)).size;
+  const barangUnik=new Set(outs.map(l=>l.itemid)).size;
   document.getElementById('trackStats').innerHTML=`
     <div class="stat warn"><div class="label">Total Unit Keluar</div><div class="val">${totalKeluar}</div></div>
     <div class="stat blue"><div class="label">Transaksi Keluar</div><div class="val">${transaksiKeluar}</div></div>
@@ -449,7 +515,7 @@ function renderTracking(){
 
   // TOP BARANG
   const byItem={};
-  outs.forEach(l=>{ byItem[l.itemNm]=(byItem[l.itemNm]||0)+l.qty; });
+  outs.forEach(l=>{ byItem[l.itemnm]=(byItem[l.itemnm]||0)+l.qty; });
   const topItems=Object.entries(byItem).sort((a,b)=>b[1]-a[1]).slice(0,10);
   const maxI=topItems.length?topItems[0][1]:1;
   const tb=document.getElementById('topBarang');
@@ -473,14 +539,14 @@ function renderTracking(){
 
   // DETAIL TABLE
   let detail=[...outs].sort((a,b)=>b.ts-a.ts);
-  if(q) detail=detail.filter(l=>l.itemNm.toLowerCase().includes(q)||(l.person||'').toLowerCase().includes(q));
+  if(q) detail=detail.filter(l=>l.itemnm.toLowerCase().includes(q)||(l.person||'').toLowerCase().includes(q));
   const kt=document.getElementById('keluarTable');
   kt.innerHTML=detail.length?`<table><thead><tr>
     <th>Tanggal</th><th>Barang</th><th>Pemilik</th><th>Jumlah</th><th>Dikeluarkan Oleh</th><th>Catatan</th>
     </tr></thead><tbody>`+detail.map(l=>`<tr>
       <td class="muted">${fmtDate(l.ts)}</td>
-      <td><b>${esc(l.itemNm)}</b></td>
-      <td><span class="badge ${(l.owner||'Mobile')==='Household'?'badge-household':'badge-mobile'}">${esc(l.owner||'Mobile')}</span></td>
+      <td><b>${esc(l.itemnm)}</b></td>
+      <td>${ownerBadge(l.owner)}</td>
       <td><b>−${l.qty}</b></td>
       <td><span class="badge badge-out">${l.person?esc(l.person):'-'}</span></td>
       <td class="muted">${esc(l.note)||'-'}</td>
@@ -492,8 +558,107 @@ function refresh(){
   if(document.getElementById('tab-tracking').style.display!=='none') renderTracking();
 }
 
-document.querySelector('.wrap').insertAdjacentHTML('afterbegin','<div class="loading" id="ld">Memuat data...</div>');
-loadData().then(()=>{ const l=document.getElementById('ld'); if(l) l.remove(); });
+// ============================================================
+//  SISTEM LOGIN ADMIN
+//  4 admin default. Password bisa direset & tersimpan di Supabase.
+// ============================================================
+const DEFAULT_ADMINS = [
+  { user:'admin1', pass:'mygudang1' },
+  { user:'admin2', pass:'mygudang2' },
+  { user:'admin3', pass:'mygudang3' },
+  { user:'admin4', pass:'mygudang4' }
+];
+let ADMINS = DEFAULT_ADMINS.map(a=>({...a}));
+let currentUser = null;
+
+// ambil daftar admin (dengan password terbaru) dari Supabase
+async function loadAdmins(){
+  if(!sb) return;
+  try {
+    const { data, error } = await sb.from('admins').select('*');
+    if(error) throw error;
+    if(data && data.length){
+      // gabungkan: password dari DB menimpa default
+      ADMINS = DEFAULT_ADMINS.map(d=>{
+        const row = data.find(r=>r.username===d.user);
+        return { user:d.user, pass: row ? row.password : d.pass };
+      });
+    }
+  } catch(e){ /* pakai default kalau tabel belum ada */ }
+}
+
+async function doLogin(){
+  const u=document.getElementById('loginUser').value.trim();
+  const p=document.getElementById('loginPass').value;
+  const err=document.getElementById('loginErr');
+  initSb();
+  await loadAdmins();
+  const found=ADMINS.find(a=>a.user===u && a.pass===p);
+  if(!found){
+    err.textContent='Username atau password salah.';
+    err.style.display='block';
+    return;
+  }
+  err.style.display='none';
+  currentUser=u;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('currentUser').textContent='👤 '+u;
+  document.getElementById('loginPass').value='';
+  // baru muat data setelah login
+  document.querySelector('.wrap').insertAdjacentHTML('afterbegin','<div class="loading" id="ld">Memuat data...</div>');
+  loadData().then(()=>{ const l=document.getElementById('ld'); if(l) l.remove(); });
+}
+
+function doLogout(){
+  currentUser=null;
+  document.getElementById('loginUser').value='';
+  document.getElementById('loginPass').value='';
+  document.getElementById('loginScreen').style.display='flex';
+}
+
+function openReset(){
+  document.getElementById('rsUser').value='';
+  document.getElementById('rsOld').value='';
+  document.getElementById('rsNew').value='';
+  document.getElementById('rsNew2').value='';
+  document.getElementById('rsErr').style.display='none';
+  document.getElementById('resetModal').classList.add('show');
+}
+
+async function doReset(){
+  const u=document.getElementById('rsUser').value.trim();
+  const oldp=document.getElementById('rsOld').value;
+  const np=document.getElementById('rsNew').value;
+  const np2=document.getElementById('rsNew2').value;
+  const err=document.getElementById('rsErr');
+  const show=(m)=>{ err.textContent=m; err.style.display='block'; };
+
+  initSb();
+  if(!sb){ show('Belum terhubung ke database. Cek koneksi Supabase.'); return; }
+  await loadAdmins();
+  const found=ADMINS.find(a=>a.user===u);
+  if(!found){ show('Username tidak ditemukan.'); return; }
+  if(found.pass!==oldp){ show('Password lama salah.'); return; }
+  if(np.length<4){ show('Password baru minimal 4 karakter.'); return; }
+  if(np!==np2){ show('Ulangi password tidak cocok.'); return; }
+
+  try {
+    const { error } = await sb.from('admins').upsert({ username:u, password:np });
+    if(error) throw error;
+    err.style.display='none';
+    closeModal('resetModal');
+    alert('Password untuk '+u+' berhasil diubah. Silakan login dengan password baru.');
+  } catch(e){
+    show('Gagal menyimpan: '+(e.message||e)+' — pastikan tabel admins sudah dibuat.');
+  }
+}
+
+// izinkan tekan Enter di form login
+document.getElementById('loginPass').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+document.getElementById('loginUser').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
+
+// aplikasi menunggu login dulu — loadData dipanggil di doLogin()
+
 </script>
 </body>
 </html>
