@@ -352,13 +352,26 @@ async function loadData(){
     items=it||[]; logs=lg||[];
     setConn('✅ Terhubung ke database bersama. Semua pengguna melihat data yang sama.','ok');
     loaded=true; refresh();
-    sb.channel('mygudang')
-      .on('postgres_changes',{event:'*',schema:'public',table:'items'},reloadSilently)
-      .on('postgres_changes',{event:'*',schema:'public',table:'logs'},reloadSilently)
-      .subscribe();
+    pasangRealtime();
   } catch(err){
     setConn('❌ Gagal terhubung. Cek URL/Key & tabel Supabase. ('+(err.message||err)+')','err');
     loaded=true; refresh();
+  }
+}
+
+// saluran realtime hanya boleh dibuat sekali per halaman
+let rtChannel = null;
+function pasangRealtime(){
+  if(rtChannel) return;              // sudah aktif, jangan dibuat ulang
+  if(!sb) return;
+  try {
+    rtChannel = sb.channel('mygudang-'+Date.now())
+      .on('postgres_changes',{event:'*',schema:'public',table:'items'},reloadSilently)
+      .on('postgres_changes',{event:'*',schema:'public',table:'logs'},reloadSilently)
+      .subscribe();
+  } catch(e){
+    // sinkronisasi otomatis gagal, tapi aplikasi tetap berfungsi normal
+    rtChannel = null;
   }
 }
 
@@ -969,6 +982,8 @@ async function doLogin(){
 function doLogout(){
   currentUser=null;
   clearSession();
+  try { if(rtChannel && sb){ sb.removeChannel(rtChannel); } } catch(e){}
+  rtChannel=null;
   document.getElementById('loginUser').value='';
   document.getElementById('loginPass').value='';
   document.getElementById('loginScreen').style.display='flex';
