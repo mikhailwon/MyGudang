@@ -150,6 +150,7 @@
     <div class="tab active" data-tab="barang" onclick="switchTab('barang')">Daftar Barang</div>
     <div class="tab" data-tab="riwayat" onclick="switchTab('riwayat')">Riwayat Transaksi</div>
     <div class="tab" data-tab="tracking" onclick="switchTab('tracking')">Tracking Keluar</div>
+    <div class="tab" data-tab="cari" onclick="switchTab('cari')">🔎 Cari via Foto</div>
   </div>
 
   <!-- TAB BARANG -->
@@ -223,6 +224,25 @@
         <input id="searchT" placeholder="🔍 Cari barang / nama orang..." oninput="renderTracking()">
       </div>
       <div id="keluarTable"></div>
+    </div>
+  </div>
+
+  <!-- TAB CARI VIA FOTO -->
+  <div id="tab-cari" style="display:none">
+    <div class="card">
+      <h2>🔎 Cari Barang lewat Foto</h2>
+      <p class="admin-note" style="margin-bottom:14px">Ambil foto barang yang ada di tangan, lalu sistem mencocokkan dengan foto barang tersimpan berdasarkan kemiripan warna.</p>
+      <div><label>Foto Barang</label><input id="cariFoto" type="file" accept="image/*" capture="environment" onchange="cariGambar()"></div>
+      <div id="cariPreviewWrap" style="display:none;margin-top:14px">
+        <label>Foto yang dicari</label>
+        <img id="cariPreview" style="max-width:150px;border-radius:10px;border:1px solid #e2e8f0;display:block;margin-top:6px">
+      </div>
+      <div id="cariStatus" class="admin-note" style="margin-top:12px"></div>
+    </div>
+
+    <div class="card">
+      <h2>Hasil Paling Mirip</h2>
+      <div id="cariHasil"><div class="empty">Belum ada foto yang dicari.</div></div>
     </div>
   </div>
 </div>
@@ -339,6 +359,7 @@ async function insertLog(l){
   if(error) alert('Gagal menyimpan riwayat: '+error.message);
 }
 async function removeItem(id){
+  delete sigCache[id];
   if(!sb) return;
   const {error}=await sb.from('items').delete().eq('id',id);
   if(error) alert('Gagal menghapus: '+error.message);
@@ -431,11 +452,117 @@ document.getElementById('txSubmit').onclick=async function(){
 function closeModal(id){ document.getElementById(id).classList.remove('show'); }
 function showImg(src){ document.getElementById('imgBig').src=src; document.getElementById('imgModal').classList.add('show'); }
 
+// ============================================================
+//  PENCARIAN BARANG LEWAT FOTO (kemiripan warna)
+//  Cara kerja: foto dipecah jadi kisi 4x4, tiap kotak diambil
+//  rata-rata warna RGB-nya. Dua foto dibandingkan selisih warnanya.
+// ============================================================
+const GRID = 4;
+const sigCache = {}; // simpan sidik warna agar tidak dihitung ulang
+
+function buatSidikWarna(src){
+  return new Promise((resolve)=>{
+    const img=new Image();
+    img.onload=()=>{
+      try {
+        const c=document.createElement('canvas');
+        c.width=GRID*8; c.height=GRID*8;
+        const ctx=c.getContext('2d');
+        ctx.drawImage(img,0,0,c.width,c.height);
+        const d=ctx.getImageData(0,0,c.width,c.height).data;
+        const sig=[];
+        const bw=c.width/GRID, bh=c.height/GRID;
+        for(let gy=0; gy<GRID; gy++){
+          for(let gx=0; gx<GRID; gx++){
+            let r=0,g=0,b=0,n=0;
+            for(let y=gy*bh; y<(gy+1)*bh; y++){
+              for(let x=gx*bw; x<(gx+1)*bw; x++){
+                const i=(Math.floor(y)*c.width+Math.floor(x))*4;
+                r+=d[i]; g+=d[i+1]; b+=d[i+2]; n++;
+              }
+            }
+            sig.push(r/n, g/n, b/n);
+          }
+        }
+        resolve(sig);
+      } catch(e){ resolve(null); }
+    };
+    img.onerror=()=>resolve(null);
+    img.src=src;
+  });
+}
+
+// hasil 0-100, makin besar makin mirip
+function hitungKemiripan(a,b){
+  if(!a||!b||a.length!==b.length) return 0;
+  let total=0;
+  for(let i=0;i<a.length;i++){ const d=a[i]-b[i]; total+=d*d; }
+  const rms=Math.sqrt(total/a.length);       // 0 = identik, 255 = paling beda
+  return Math.max(0, Math.round((1-rms/140)*100));
+}
+
+async function cariGambar(){
+  const file=document.getElementById('cariFoto').files[0];
+  const status=document.getElementById('cariStatus');
+  const hasil=document.getElementById('cariHasil');
+  if(!file) return;
+
+  const src=await fileToDataUrl(file);
+  document.getElementById('cariPreview').src=src;
+  document.getElementById('cariPreviewWrap').style.display='block';
+
+  const berfoto=items.filter(i=>i.foto);
+  if(!berfoto.length){
+    status.textContent='';
+    hasil.innerHTML='<div class="empty">Belum ada barang yang punya foto. Tambahkan foto saat input barang agar bisa dicari lewat gambar.</div>';
+    return;
+  }
+
+  status.textContent='Membandingkan dengan '+berfoto.length+' barang berfoto...';
+  hasil.innerHTML='<div class="loading">Menganalisis warna...</div>';
+
+  const sigCari=await buatSidikWarna(src);
+  if(!sigCari){
+    status.textContent='';
+    hasil.innerHTML='<div class="empty">Foto tidak bisa dibaca. Coba foto lain.</div>';
+    return;
+  }
+
+  const skor=[];
+  for(const it of berfoto){
+    if(!sigCache[it.id]) sigCache[it.id]=await buatSidikWarna(it.foto);
+    skor.push({ it, nilai: hitungKemiripan(sigCari, sigCache[it.id]) });
+  }
+  skor.sort((a,b)=>b.nilai-a.nilai);
+  const top=skor.slice(0,6);
+
+  status.textContent='Selesai. Menampilkan '+top.length+' barang paling mirip.';
+  hasil.innerHTML=top.map(s=>{
+    const i=s.it;
+    const warna = s.nilai>=70 ? '#10b981' : s.nilai>=45 ? '#f59e0b' : '#94a3b8';
+    return `<div style="display:flex;gap:12px;align-items:center;padding:12px 0;border-bottom:1px solid #e2e8f0">
+      <img src="${i.foto}" class="thumb" style="width:56px;height:56px" onclick="showImg('${i.foto}')">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;margin-bottom:3px">${esc(i.nm)}</div>
+        <div style="margin-bottom:5px">${ownerBadge(i.owner)} ${lokasiBadge(i.lokasi)} <span class="muted">stok ${i.qty}</span></div>
+        <div style="background:#f1f5f9;border-radius:6px;height:6px;overflow:hidden;max-width:200px">
+          <div style="background:${warna};height:100%;width:${s.nilai}%"></div></div>
+        <div class="muted" style="font-size:11px;margin-top:3px">kemiripan ${s.nilai}%</div>
+      </div>
+      <div class="row-actions">
+        <button class="btn btn-sm btn-in" onclick="openTx('${i.id}','in')">Masuk</button>
+        <button class="btn btn-sm btn-out" onclick="openTx('${i.id}','out')">Keluar</button>
+      </div>
+    </div>`;
+  }).join('')+'<p class="admin-note" style="margin-top:12px">Pencocokan berdasarkan warna, jadi hasilnya perkiraan. Selalu pastikan nama barangnya benar sebelum mengeluarkan stok.</p>';
+}
+
 function switchTab(t){
   document.querySelectorAll('.tab').forEach(el=>el.classList.toggle('active',el.dataset.tab===t));
   document.getElementById('tab-barang').style.display=t==='barang'?'block':'none';
   document.getElementById('tab-riwayat').style.display=t==='riwayat'?'block':'none';
   document.getElementById('tab-tracking').style.display=t==='tracking'?'block':'none';
+  document.getElementById('tab-cari').style.display=t==='cari'?'block':'none';
   if(t==='tracking') renderTracking();
 }
 
