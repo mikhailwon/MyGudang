@@ -571,6 +571,34 @@ const DEFAULT_ADMINS = [
 let ADMINS = DEFAULT_ADMINS.map(a=>({...a}));
 let currentUser = null;
 
+// masa berlaku sesi: 12 jam
+const SESSION_HOURS = 12;
+
+function saveSession(u){
+  try { localStorage.setItem('mygudang_session', JSON.stringify({ user:u, exp: Date.now()+SESSION_HOURS*3600000 })); } catch(e){}
+}
+function clearSession(){
+  try { localStorage.removeItem('mygudang_session'); } catch(e){}
+}
+function readSession(){
+  try {
+    const raw=localStorage.getItem('mygudang_session');
+    if(!raw) return null;
+    const s=JSON.parse(raw);
+    if(!s.user || !s.exp || Date.now()>s.exp){ clearSession(); return null; }
+    return s.user;
+  } catch(e){ return null; }
+}
+
+// masuk ke aplikasi tanpa cek password (dipakai saat sesi masih berlaku)
+function enterApp(u){
+  currentUser=u;
+  document.getElementById('loginScreen').style.display='none';
+  document.getElementById('currentUser').textContent='👤 '+u;
+  document.querySelector('.wrap').insertAdjacentHTML('afterbegin','<div class="loading" id="ld">Memuat data...</div>');
+  loadData().then(()=>{ const l=document.getElementById('ld'); if(l) l.remove(); });
+}
+
 // ambil daftar admin (dengan password terbaru) dari Supabase
 async function loadAdmins(){
   if(!sb) return;
@@ -600,17 +628,14 @@ async function doLogin(){
     return;
   }
   err.style.display='none';
-  currentUser=u;
-  document.getElementById('loginScreen').style.display='none';
-  document.getElementById('currentUser').textContent='👤 '+u;
   document.getElementById('loginPass').value='';
-  // baru muat data setelah login
-  document.querySelector('.wrap').insertAdjacentHTML('afterbegin','<div class="loading" id="ld">Memuat data...</div>');
-  loadData().then(()=>{ const l=document.getElementById('ld'); if(l) l.remove(); });
+  saveSession(u);
+  enterApp(u);
 }
 
 function doLogout(){
   currentUser=null;
+  clearSession();
   document.getElementById('loginUser').value='';
   document.getElementById('loginPass').value='';
   document.getElementById('loginScreen').style.display='flex';
@@ -657,7 +682,14 @@ async function doReset(){
 document.getElementById('loginPass').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
 document.getElementById('loginUser').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
 
-// aplikasi menunggu login dulu — loadData dipanggil di doLogin()
+// aplikasi menunggu login dulu — kecuali sesi sebelumnya masih berlaku
+(function restoreSession(){
+  const u=readSession();
+  if(!u) return;
+  if(!DEFAULT_ADMINS.some(a=>a.user===u)){ clearSession(); return; }
+  initSb();
+  enterApp(u);
+})();
 
 </script>
 </body>
